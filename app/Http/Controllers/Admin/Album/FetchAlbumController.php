@@ -24,6 +24,9 @@ class FetchAlbumController extends Controller
             'message'   => 'Albums fetched successfully',
             'data'      => $albums,
             'status'    => true,
+            'actions'   => [
+                'delete'
+            ]
         ]);
     }
 }

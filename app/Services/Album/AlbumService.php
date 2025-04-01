@@ -3,6 +3,7 @@
 namespace App\Services\Album;
 
 use App\Models\Album;
+use App\Models\User;
 
 class AlbumService
 {
@@ -13,26 +14,21 @@ class AlbumService
      * @param int         $perPage Number of albums per page for pagination.
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator Paginated result of albums.
      */
-    public function getAlbums(?string $search = null, int $perPage = 10)
+    public function getAlbums(?string $search = null, int $perPage = 5, ?User $user = null)
     {
-        // Use withSum() to calculate the total votes for each album.
-        // The votes relationship should exist on the Album model.
-        $query = Album::withSum('votes', 'vote');
-
-        // Apply search filter if provided.
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('song_name', 'LIKE', "%{$search}%")
-                    ->orWhere('artist_name', 'LIKE', "%{$search}%");
-            });
-        }
-
-        // Sort the albums:
-        // 1. Order by total votes (descending)
-        // 2. For albums with the same vote total, order alphabetically by song name.
-        $query->orderByDesc('votes_sum_vote')->orderBy('song_name');
-
-        // Return paginated result
-        return $query->paginate($perPage)->appends(['search' => $search]);
+        return Album::withSum('votes', 'vote') // Get total votes
+            ->when($user, function ($query) use ($user) {
+                $query->with(['votes' => function ($q) use ($user) {
+                    $q->where('user_id', $user?->user_id);
+                }]);
+            })
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('song_name', 'LIKE', "%{$search}%")
+                        ->orWhere('artist_name', 'LIKE', "%{$search}%");
+                });
+            })
+            ->orderByDesc('votes_sum_vote')->orderBy('song_name')
+            ->paginate($perPage)->appends(['search' => $search]);
     }
 }
